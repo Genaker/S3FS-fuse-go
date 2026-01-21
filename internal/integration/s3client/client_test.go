@@ -184,8 +184,14 @@ func TestPutObjectWithMetadata(t *testing.T) {
 		t.Fatalf("HeadObject failed: %v", err)
 	}
 
-	if retrievedMetadata["x-amz-meta-test"] != "test-value" {
-		t.Errorf("Expected metadata 'test-value', got '%s'", retrievedMetadata["x-amz-meta-test"])
+	// HeadObject returns metadata keys WITHOUT "x-amz-meta-" prefix (AWS SDK strips it)
+	// So check for key without prefix
+	if retrievedMetadata["test"] != "test-value" {
+		// Also check with prefix (in case it's preserved)
+		if retrievedMetadata["x-amz-meta-test"] != "test-value" {
+			t.Errorf("Expected metadata 'test-value', got '%s' (without prefix) or '%s' (with prefix)", 
+				retrievedMetadata["test"], retrievedMetadata["x-amz-meta-test"])
+		}
 	}
 
 	// Cleanup

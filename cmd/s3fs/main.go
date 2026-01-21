@@ -12,11 +12,12 @@ import (
 
 func main() {
 	var (
-		bucket     = flag.String("bucket", "", "S3 bucket name")
-		mountpoint = flag.String("mountpoint", "", "Mount point directory")
-		region     = flag.String("region", "us-east-1", "AWS region")
-		endpoint   = flag.String("endpoint", "", "S3 endpoint URL (for LocalStack or other S3-compatible services)")
-		passwdFile = flag.String("passwd_file", "", "Path to passwd file")
+		bucket        = flag.String("bucket", "", "S3 bucket name")
+		mountpoint    = flag.String("mountpoint", "", "Mount point directory")
+		region        = flag.String("region", "us-east-1", "AWS region")
+		endpoint      = flag.String("endpoint", "", "S3 endpoint URL (for LocalStack or other S3-compatible services)")
+		passwdFile    = flag.String("passwd_file", "", "Path to passwd file")
+		enableFileLock = flag.Bool("enable_file_lock", false, "Enable file-level advisory locking for stricter coordination (default: false, uses entity-level locking)")
 	)
 	flag.Parse()
 
@@ -53,9 +54,15 @@ func main() {
 		client = s3client.NewClient(*bucket, *region, creds)
 	}
 
-	// Mount filesystem
+	// Mount filesystem with options
+	options := fuse.MountOptions{
+		EnableFileLock: *enableFileLock,
+	}
 	fmt.Printf("Mounting bucket %s to %s\n", *bucket, *mountpoint)
-	if err := fuse.Mount(*mountpoint, client); err != nil {
+	if *enableFileLock {
+		fmt.Println("File-level advisory locking enabled")
+	}
+	if err := fuse.MountWithOptions(*mountpoint, client, options); err != nil {
 		log.Fatalf("Failed to mount filesystem: %v", err)
 	}
 }

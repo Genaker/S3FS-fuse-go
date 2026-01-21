@@ -59,6 +59,7 @@ export AWS_SECRET_ACCESS_KEY=your-secret-key
 - `-region`: AWS region (default: `us-east-1`)
 - `-endpoint`: S3 endpoint URL (for LocalStack or other S3-compatible services, optional)
 - `-passwd_file`: Path to passwd file containing credentials (optional)
+- `-enable_file_lock`: Enable file-level advisory locking for stricter coordination (default: `false`, uses entity-level locking)
 
 ### Example
 
@@ -324,13 +325,13 @@ fusermount -u /mnt/s3
 docker-compose -f docker-compose.localstack.yml down
 ```
 
-#### LocalStack Test Script
+#### LocalStack Filesystem Test Script
 
-A convenience script is provided for full LocalStack testing:
+A convenience script is provided for full filesystem testing with LocalStack:
 
 ```bash
-chmod +x test-localstack.sh
-./test-localstack.sh
+chmod +x test-filesystem-localstack.sh
+./test-filesystem-localstack.sh
 ```
 
 This script will:
@@ -364,7 +365,7 @@ go/
 ├── Dockerfile         # Docker image for testing
 ├── docker-compose.yml # Docker Compose configuration
 ├── docker-compose.localstack.yml # LocalStack Docker Compose config
-├── test-localstack.sh # LocalStack test script
+├── test-filesystem-localstack.sh # LocalStack filesystem mount test script
 └── README.md          # This file
 ```
 
@@ -428,6 +429,42 @@ Make sure your credentials are correct:
 # Test credentials with AWS CLI
 aws s3 ls s3://my-bucket-name
 ```
+
+## Write Locking Configuration
+
+s3fs-go supports two locking strategies for concurrent file operations:
+
+### Option 1: Entity-Level Locking (Default)
+
+**Default behavior** - Uses mutex locking at the file entity level:
+- Better performance
+- Sufficient for most use cases
+- Serializes writes to the same file entity
+- Works well for single-process FUSE mounts
+
+```bash
+# Default - entity-level locking
+./s3fs -bucket my-bucket -mountpoint /mnt/s3
+```
+
+### Option 2: File-Level Advisory Locking
+
+**Optional** - Provides stricter coordination with file-level locks:
+- Stricter serialization of all file operations
+- Better coordination for applications that need guaranteed write ordering
+- Slightly higher overhead
+
+```bash
+# Enable file-level advisory locking
+./s3fs -bucket my-bucket -mountpoint /mnt/s3 -enable_file_lock
+```
+
+### When to Use Each Option
+
+- **Entity-Level Locking (Default)**: Use for general-purpose file operations, single-process mounts, and when performance is important
+- **File-Level Locking**: Use when you need stricter coordination, guaranteed write ordering, or when multiple processes/threads need explicit file-level synchronization
+
+**Note**: Both options work within a single FUSE mount instance. For coordination across multiple mount instances or different machines, consider using S3-native features like ETags or external locking mechanisms.
 
 ## License
 

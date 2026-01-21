@@ -35,4 +35,4 @@ echo ""
 export S3_PROVIDER="$PROVIDER"
 
 # Run tests with integration build tag
-go test -tags=integration ./internal/integration/... -v "$@"
+go test -tags=integration ./tests/... -v "$@"

@@ -138,13 +138,13 @@ fusermount -u /mnt/s3
 docker-compose -f docker-compose.localstack.yml down
 ```
 
-## Using the Test Script
+## Using the Filesystem Test Script
 
-A convenience script is provided for full LocalStack testing:
+A convenience script is provided for full filesystem testing with LocalStack:
 
 ```bash
-chmod +x test-localstack.sh
-./test-localstack.sh
+chmod +x test-filesystem-localstack.sh
+./test-filesystem-localstack.sh
 ```
 
 This script will:

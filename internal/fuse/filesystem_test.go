@@ -8,20 +8,20 @@ import (
 )
 
 func TestNewFilesystem(t *testing.T) {
-	client := s3client.NewClient("test-bucket", "us-east-1", nil)
+	client := s3client.NewMockClient("test-bucket", "us-east-1")
 	fs := NewFilesystem(client)
 	
 	if fs == nil {
 		t.Fatal("NewFilesystem returned nil")
 	}
 	
-	if fs.client == nil {
-		t.Error("Filesystem client is nil")
+	if fs.backend == nil {
+		t.Error("Filesystem backend is nil")
 	}
 }
 
 func TestGetAttr(t *testing.T) {
-	client := s3client.NewClient("test-bucket", "us-east-1", nil)
+	client := s3client.NewMockClient("test-bucket", "us-east-1")
 	fs := NewFilesystem(client)
 	
 	ctx := context.Background()
@@ -33,7 +33,7 @@ func TestGetAttr(t *testing.T) {
 }
 
 func TestReadDir(t *testing.T) {
-	client := s3client.NewClient("test-bucket", "us-east-1", nil)
+	client := s3client.NewMockClient("test-bucket", "us-east-1")
 	fs := NewFilesystem(client)
 	
 	ctx := context.Background()
@@ -46,7 +46,7 @@ func TestReadDir(t *testing.T) {
 }
 
 func TestReadFile(t *testing.T) {
-	client := s3client.NewClient("test-bucket", "us-east-1", nil)
+	client := s3client.NewMockClient("test-bucket", "us-east-1")
 	fs := NewFilesystem(client)
 	
 	ctx := context.Background()
@@ -58,7 +58,7 @@ func TestReadFile(t *testing.T) {
 }
 
 func TestWriteFile(t *testing.T) {
-	client := s3client.NewClient("test-bucket", "us-east-1", nil)
+	client := s3client.NewMockClient("test-bucket", "us-east-1")
 	fs := NewFilesystem(client)
 	
 	ctx := context.Background()

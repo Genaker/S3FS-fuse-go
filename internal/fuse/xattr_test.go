@@ -9,7 +9,7 @@ import (
 
 // TestExtendedAttributes tests basic extended attributes operations
 func TestExtendedAttributes(t *testing.T) {
-	client := s3client.NewClient("test-bucket", "us-east-1", nil)
+	client := s3client.NewMockClient("test-bucket", "us-east-1")
 	fs := NewFilesystem(client)
 	ctx := context.Background()
 
@@ -78,7 +78,7 @@ func TestExtendedAttributes(t *testing.T) {
 
 // TestUpdateTimeXattr tests that setting xattr updates ctime
 func TestUpdateTimeXattr(t *testing.T) {
-	client := s3client.NewClient("test-bucket", "us-east-1", nil)
+	client := s3client.NewMockClient("test-bucket", "us-east-1")
 	fs := NewFilesystem(client)
 	ctx := context.Background()
 
@@ -126,7 +126,7 @@ func TestUpdateTimeXattr(t *testing.T) {
 
 // TestUpdateDirectoryTimeSetXattr tests that setting xattr on directory updates ctime
 func TestUpdateDirectoryTimeSetXattr(t *testing.T) {
-	client := s3client.NewClient("test-bucket", "us-east-1", nil)
+	client := s3client.NewMockClient("test-bucket", "us-east-1")
 	fs := NewFilesystem(client)
 	ctx := context.Background()
 

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -144,11 +145,24 @@ func (c *Client) PutObjectWithMetadata(ctx context.Context, key string, data []b
 		return fmt.Errorf("S3 client not initialized")
 	}
 
+	// AWS SDK expects metadata keys WITHOUT "x-amz-meta-" prefix
+	// It adds the prefix automatically
+	cleanMetadata := make(map[string]string)
+	const metaPrefix = "x-amz-meta-"
+	for k, v := range metadata {
+		// Remove "x-amz-meta-" prefix if present
+		key := k
+		if strings.HasPrefix(k, metaPrefix) {
+			key = k[len(metaPrefix):] // Remove prefix
+		}
+		cleanMetadata[key] = v
+	}
+
 	input := &s3.PutObjectInput{
 		Bucket:   aws.String(c.bucket),
 		Key:      aws.String(key),
 		Body:     bytes.NewReader(data),
-		Metadata: metadata,
+		Metadata: cleanMetadata,
 	}
 
 	_, err := c.s3Client.PutObject(ctx, input)
@@ -165,12 +179,25 @@ func (c *Client) CopyObjectWithMetadata(ctx context.Context, sourceKey, destKey 
 		return fmt.Errorf("S3 client not initialized")
 	}
 
+	// AWS SDK expects metadata keys WITHOUT "x-amz-meta-" prefix
+	// It adds the prefix automatically
+	cleanMetadata := make(map[string]string)
+	const metaPrefix = "x-amz-meta-"
+	for k, v := range metadata {
+		// Remove "x-amz-meta-" prefix if present
+		key := k
+		if strings.HasPrefix(k, metaPrefix) {
+			key = k[len(metaPrefix):] // Remove prefix
+		}
+		cleanMetadata[key] = v
+	}
+
 	copySource := fmt.Sprintf("%s/%s", c.bucket, sourceKey)
 	input := &s3.CopyObjectInput{
 		Bucket:            aws.String(c.bucket),
 		Key:               aws.String(destKey),
 		CopySource:        aws.String(copySource),
-		Metadata:          metadata,
+		Metadata:          cleanMetadata,
 		MetadataDirective: types.MetadataDirectiveReplace,
 	}
 

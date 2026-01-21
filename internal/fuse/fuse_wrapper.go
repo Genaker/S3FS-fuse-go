@@ -8,7 +8,6 @@ import (
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
-	"github.com/s3fs-fuse/s3fs-go/internal/s3client"
 )
 
 // FuseFS implements the fuse.FS interface
@@ -17,6 +16,7 @@ type FuseFS struct {
 }
 
 var _ fs.FS = (*FuseFS)(nil)
+var _ fs.FSStatfser = (*FuseFS)(nil)
 
 // Root returns the root directory
 func (f *FuseFS) Root() (fs.Node, error) {
@@ -24,6 +24,23 @@ func (f *FuseFS) Root() (fs.Node, error) {
 		filesystem: f.filesystem,
 		path:       "/",
 	}, nil
+}
+
+// Statfs returns filesystem statistics
+func (f *FuseFS) Statfs(ctx context.Context, req *fuse.StatfsRequest, resp *fuse.StatfsResponse) error {
+	statfs, err := f.filesystem.Statfs(ctx)
+	if err != nil {
+		return err
+	}
+	resp.Blocks = statfs.Blocks
+	resp.Bfree = statfs.Bfree
+	resp.Bavail = statfs.Bavail
+	resp.Files = statfs.Files
+	resp.Ffree = statfs.Ffree
+	resp.Bsize = uint32(statfs.Bsize)
+	resp.Namelen = statfs.Namelen
+	resp.Frsize = uint32(statfs.Bsize)
+	return nil
 }
 
 // Dir represents a directory node
@@ -43,6 +60,9 @@ var _ fs.NodeListxattrer = (*Dir)(nil)
 var _ fs.NodeMkdirer = (*Dir)(nil)
 var _ fs.NodeCreater = (*Dir)(nil)
 var _ fs.NodeRemover = (*Dir)(nil)
+var _ fs.NodeSymlinker = (*Dir)(nil)
+var _ fs.NodeMknoder = (*Dir)(nil)
+var _ fs.NodeAccesser = (*Dir)(nil)
 
 // Attr returns directory attributes
 func (d *Dir) Attr(ctx context.Context, a *fuse.Attr) error {
@@ -245,6 +265,53 @@ func (d *Dir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
 	return d.filesystem.Remove(ctx, childPath)
 }
 
+// Symlink creates a symbolic link
+func (d *Dir) Symlink(ctx context.Context, req *fuse.SymlinkRequest) (fs.Node, error) {
+	childPath := d.path
+	if childPath != "/" {
+		childPath += "/"
+	}
+	childPath += req.NewName
+	
+	err := d.filesystem.Symlink(ctx, req.Target, childPath)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Return a file node for the symlink
+	return &File{
+		filesystem: d.filesystem,
+		path:       childPath,
+	}, nil
+}
+
+// Mknod creates a special file (not supported)
+func (d *Dir) Mknod(ctx context.Context, req *fuse.MknodRequest) (fs.Node, error) {
+	childPath := d.path
+	if childPath != "/" {
+		childPath += "/"
+	}
+	childPath += req.Name
+	
+	err := d.filesystem.Mknod(ctx, childPath, req.Mode, req.Rdev)
+	if err != nil {
+		return nil, err
+	}
+	
+	return &File{
+		filesystem: d.filesystem,
+		path:       childPath,
+	}, nil
+}
+
+// Access checks file access permissions
+func (d *Dir) Access(ctx context.Context, req *fuse.AccessRequest) error {
+	return d.filesystem.Access(ctx, d.path, req.Mask)
+}
+
+// Opendir opens a directory handle - implemented as part of HandleReadDirAller
+// No explicit opendir needed, handled by ReadDirAll
+
 // File represents a file node
 type File struct {
 	filesystem *Filesystem
@@ -260,6 +327,12 @@ var _ fs.NodeGetxattrer = (*File)(nil)
 var _ fs.NodeSetxattrer = (*File)(nil)
 var _ fs.NodeRemovexattrer = (*File)(nil)
 var _ fs.NodeListxattrer = (*File)(nil)
+var _ fs.NodeReadlinker = (*File)(nil)
+var _ fs.NodeLinker = (*File)(nil)
+var _ fs.NodeAccesser = (*File)(nil)
+var _ fs.NodeFsyncer = (*File)(nil)
+var _ fs.HandleFlusher = (*File)(nil)
+var _ fs.HandleReleaser = (*File)(nil)
 
 // Attr returns file attributes
 func (f *File) Attr(ctx context.Context, a *fuse.Attr) error {
@@ -377,9 +450,67 @@ func (f *File) Listxattr(ctx context.Context, req *fuse.ListxattrRequest, resp *
 	return nil
 }
 
+// Readlink reads the target of a symbolic link
+func (f *File) Readlink(ctx context.Context, req *fuse.ReadlinkRequest) (string, error) {
+	return f.filesystem.Readlink(ctx, f.path)
+}
+
+// Link creates a hard link (not supported)
+func (f *File) Link(ctx context.Context, req *fuse.LinkRequest, old fs.Node) (fs.Node, error) {
+	oldFile, ok := old.(*File)
+	if !ok {
+		return nil, syscall.EINVAL
+	}
+	
+	err := f.filesystem.Link(ctx, oldFile.path, f.path)
+	if err != nil {
+		return nil, err
+	}
+	
+	return &File{
+		filesystem: f.filesystem,
+		path:       f.path,
+	}, nil
+}
+
+// Access checks file access permissions
+func (f *File) Access(ctx context.Context, req *fuse.AccessRequest) error {
+	return f.filesystem.Access(ctx, f.path, req.Mask)
+}
+
+// Flush flushes file buffers
+func (f *File) Flush(ctx context.Context, req *fuse.FlushRequest) error {
+	return f.filesystem.Flush(ctx, f.path)
+}
+
+// Fsync syncs file data to storage
+func (f *File) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
+	// req.Flags: bit 1 is datasync (sync data only), 0 = fsync (sync data and metadata)
+	datasync := req.Flags&1 != 0
+	return f.filesystem.Fsync(ctx, f.path, datasync)
+}
+
+// Release releases a file handle
+func (f *File) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
+	return f.filesystem.Release(ctx, f.path)
+}
+
+// MountOptions contains options for mounting the filesystem
+type MountOptions struct {
+	EnableFileLock bool // Enable file-level advisory locking (default: false)
+}
+
 // Mount mounts the filesystem at the given mountpoint
-func Mount(mountpoint string, client *s3client.Client) error {
+func Mount(mountpoint string, client S3ClientInterface) error {
+	return MountWithOptions(mountpoint, client, MountOptions{})
+}
+
+// MountWithOptions mounts the filesystem at the given mountpoint with options
+func MountWithOptions(mountpoint string, client S3ClientInterface, options MountOptions) error {
 	filesystem := NewFilesystem(client)
+	if options.EnableFileLock {
+		filesystem.SetEnableFileLock(true)
+	}
 	fuseFS := &FuseFS{
 		filesystem: filesystem,
 	}
