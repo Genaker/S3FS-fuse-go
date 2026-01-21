@@ -1,0 +1,11 @@
+mode: set
+github.com/s3fs-fuse/s3fs-go/internal/credentials/credentials.go:18.36,20.2 1 1
+github.com/s3fs-fuse/s3fs-go/internal/credentials/credentials.go:23.61,25.16 2 1
+github.com/s3fs-fuse/s3fs-go/internal/credentials/credentials.go:25.16,27.3 1 1
+github.com/s3fs-fuse/s3fs-go/internal/credentials/credentials.go:29.2,31.21 3 1
+github.com/s3fs-fuse/s3fs-go/internal/credentials/credentials.go:31.21,33.3 1 1
+github.com/s3fs-fuse/s3fs-go/internal/credentials/credentials.go:35.2,38.12 3 1
+github.com/s3fs-fuse/s3fs-go/internal/credentials/credentials.go:42.51,47.40 4 1
+github.com/s3fs-fuse/s3fs-go/internal/credentials/credentials.go:47.40,49.3 1 0
+github.com/s3fs-fuse/s3fs-go/internal/credentials/credentials.go:51.2,55.12 4 1
+github.com/s3fs-fuse/s3fs-go/internal/credentials/credentials.go:59.38,61.2 1 1
